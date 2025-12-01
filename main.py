@@ -1,16 +1,5 @@
 """
-main.py — Final Driver Monitoring System
-
-Features included:
-- Mediapipe FaceMesh
-- Dynamic EAR Calibration (for different eye shapes)
-- Blink Detection + Blink Rate + Blink Fatigue
-- MAR-based Yawn Detection
-- Drowsiness Score (0–100)
-- Anger Alert
-- Temporal Emotion Smoothing
-- Face Alignment (eye-level)
-- Alarm System
+main.py — Final Driver Monitoring System (DEBUG MODE)
 """
 
 import cv2
@@ -48,7 +37,9 @@ ANGER_CONFIDENCE = 0.55
 EMOTION_LABELS = ["angry", "happy", "neutral", "sad"]
 NUM_CLASSES = len(EMOTION_LABELS)
 
-WEIGHTS_PATH = "emotion_weights.weights.h5"
+#WEIGHTS_PATH = "FACE_recognition-main/emotion_weights.weights.h5" 
+WEIGHTS_PATH = "FACE_recognition-main/emotion_weights_finetuned.weights.h5"
+
 ALARM_SOUND = "alarm.mp3"
 
 # -------------------------
@@ -114,8 +105,12 @@ def smooth_emotion(preds):
 clahe = cv2.createCLAHE(clipLimit=2.0)
 
 def preprocess_face(gray):
+    # Check if image is valid
+    if gray is None or gray.size == 0:
+        return None
+    
     gray = clahe.apply(gray)
-    face = cv2.resize(gray, (48, 48))
+    face = cv2.resize(gray, (96, 96))
     face = face.astype("float32") / 255.0
     face = np.expand_dims(face, -1)
     return np.expand_dims(face, 0)
@@ -126,12 +121,16 @@ def preprocess_face(gray):
 print("[INFO] Loading emotion model...")
 
 emotion_model = build_shufflenetv2(
-    input_shape=(48, 48, 1),
+    input_shape=(96, 96, 1),
     num_classes=NUM_CLASSES,
     width_multiplier=1.2,
 )
 
-load_emotion_weights(emotion_model, WEIGHTS_PATH)
+success = load_emotion_weights(emotion_model, WEIGHTS_PATH)
+if success:
+    print(f"[SUCCESS] Weights loaded from {WEIGHTS_PATH}")
+else:
+    print(f"[WARNING] Could not load weights! Model is using random initialization.")
 
 # -------------------------
 # MEDIAPIPE INIT
@@ -156,14 +155,20 @@ if os.path.exists(ALARM_SOUND):
 def trigger_alarm():
     global ALARM_ON
     if not ALARM_ON:
-        pygame.mixer.music.play(-1)
-        ALARM_ON = True
+        try:
+            pygame.mixer.music.play(-1)
+            ALARM_ON = True
+        except:
+            pass
 
 def stop_alarm():
     global ALARM_ON
     if ALARM_ON:
-        pygame.mixer.music.stop()
-        ALARM_ON = False
+        try:
+            pygame.mixer.music.stop()
+            ALARM_ON = False
+        except:
+            pass
 
 # -------------------------
 # VIDEO STREAM
@@ -254,43 +259,46 @@ try:
         aligned_frame = align_face(frame, landmarks)
 
         # -------------------------
-        # EMOTION DETECTION
+        # EMOTION DETECTION (DEBUGGED)
         # -------------------------
         xs = [p[0] for p in landmarks]
         ys = [p[1] for p in landmarks]
 
+        # Clamp coordinates to frame dimensions
         x1, y1 = max(0, min(xs)), max(0, min(ys))
-        x2, y2 = min(w - 1, max(xs)), min(h - 1, max(ys))
+        x2, y2 = min(w, max(xs)), min(h, max(ys))
 
         emotion_label = "unknown"
         emotion_conf = 0.0
 
+        # Ensure face is large enough
         if (x2 - x1) >= 40 and (y2 - y1) >= 40:
            
-           pad_x = 5
-           pad_y = 25
+           pad_x = 10
+           pad_y = 10
+           
+           # Safe padding with boundary checks
            rx1 = max(0, x1 - pad_x)
            ry1 = max(0, y1 - pad_y)
-           rx2 = min(w - 1, x2 + pad_x)
-           ry2 = min(h - 1, y2 + pad_y)
+           rx2 = min(w, x2 + pad_x)
+           ry2 = min(h, y2 + pad_y)
 
            roi = aligned_frame[ry1:ry2, rx1:rx2]
 
-           if roi is None or roi.size == 0:
-               pass
-           elif roi.shape [0] < 20 or roi.shape[1] < 20:
-               pass
-           else: 
-               
+           if roi is not None and roi.size > 0:
                gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-
-               gray = cv2.equalizeHist(gray) #or simply gray = gray
+               gray = cv2.equalizeHist(gray) # Histogram Equalization
 
                face_input = preprocess_face(gray)
+               
+               if face_input is not None:
+                   preds = emotion_model(face_input, training=False).numpy()[0]
+                   
+                   # --- DEBUG PRINT: Check if preds change ---
+                   # print(f"DEBUG Raw: {preds}") 
+                   # ------------------------------------------
 
-               preds = emotion_model.predict(face_input, verbose = 0) [0]
-
-               emotion_label, emotion_conf = smooth_emotion(preds)
+                   emotion_label, emotion_conf = smooth_emotion(preds)
 
         # -------------------------
         # ALERTS
@@ -320,18 +328,14 @@ try:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,180,80), 2)
         cv2.putText(frame, f"Drowsiness: {drowsiness_score:.1f}",
                     (10, h-60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+        
+        # Color code emotion
+        e_color = (0, 255, 255)
+        if emotion_label == "angry": e_color = (0, 0, 255)
+        elif emotion_label == "happy": e_color = (0, 255, 0)
+        
         cv2.putText(frame, f"{emotion_label} ({emotion_conf:.2f})",
-                    (10, h-30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,255), 2)
-
-        if EAR_THRESHOLD_DYNAMIC is not None:
-            cv2.putText(frame,
-                f"EAR Thr: {EAR_THRESHOLD_DYNAMIC:.3f}",
-                (10, h-170),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (255,255,0),
-                2
-            )
+                    (10, h-30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, e_color, 2)
 
         cv2.imshow("DMS", frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):

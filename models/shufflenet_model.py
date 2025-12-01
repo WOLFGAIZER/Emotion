@@ -74,7 +74,7 @@ def shufflenet_unit(x, out_channels, strides=1, groups=2):
         return out
 
 
-def build_shufflenetv2(input_shape=(48, 48, 1), num_classes=4, width_multiplier=1.0):
+def build_shufflenetv2(input_shape=(96, 96, 1), num_classes=4, width_multiplier=1.0):
     inp = Input(shape=input_shape)
 
     # Stronger stem

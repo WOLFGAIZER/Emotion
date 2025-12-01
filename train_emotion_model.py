@@ -27,7 +27,7 @@ from models.shufflenet_model import build_shufflenetv2
 # CONFIG
 # ============================================================
 
-IMAGE_SIZE = (48, 48)
+IMAGE_SIZE = (96, 96)
 BATCH_SIZE = 64
 EPOCHS = 40
 
@@ -108,7 +108,7 @@ def safe_train_generator():
 # ============================================================
 
 model = build_shufflenetv2(
-    input_shape=(48, 48, 1),
+    input_shape=(96, 96, 1),
     num_classes=NUM_CLASSES,
     width_multiplier=1.0
 )

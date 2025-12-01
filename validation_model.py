@@ -16,16 +16,16 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from models.shufflenet_model import build_shufflenetv2, load_emotion_weights
 
 # ========== CONFIG ==========
-IMAGE_SIZE = (48, 48)
+IMAGE_SIZE = (96, 96)
 BATCH_SIZE = 64
 NUM_CLASSES = 4
 MODEL_WEIGHTS = "emotion_weights.weights.h5"
 
-EMOTION_LABELS = ['angry', 'happy', 'sad', 'neutral']
+EMOTION_LABELS = ['angry', 'happy', 'neutral', 'sad']
 FER_DIR = "datasets/fer2013"
 
 # ========== LOAD MODEL ==========
-model = build_shufflenetv2(input_shape=(48, 48, 1), num_classes=NUM_CLASSES)
+model = build_shufflenetv2(input_shape=(96, 96, 1), num_classes=NUM_CLASSES)
 
 if not load_emotion_weights(model, MODEL_WEIGHTS):
     raise FileNotFoundError(f"Could not load weights from {MODEL_WEIGHTS}")
