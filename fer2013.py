@@ -19,7 +19,7 @@ from models.shufflenet_model import build_shufflenetv2
 # ================================
 # CONFIGURATIONS
 # ================================
-IMAGE_SIZE = (48, 48)
+IMAGE_SIZE = (96, 96)
 BATCH_SIZE = 64
 EPOCHS = 40
 NUM_CLASSES = 4  # angry, happy, sad, neutral
@@ -80,7 +80,7 @@ print(f"[INFO] Computed Class Weights: {class_weights}")
 # BUILD MODEL
 # ================================
 model = build_shufflenetv2(
-    input_shape=(48, 48, 1),
+    input_shape=(96, 96, 1),
     num_classes=NUM_CLASSES
 )
 

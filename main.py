@@ -26,7 +26,7 @@ from models.ear_calculator import (
 # CONSTANTS
 # -------------------------
 YAWN_THRESHOLD = 0.62
-YAWN_FRAMES_REQUIRED = 12
+YAWN_FRAMES_REQUIRED = 20
 BLINK_FRAMES_REQUIRED = 3
 
 DROWSINESS_INCREASE = 1.5
@@ -37,8 +37,8 @@ ANGER_CONFIDENCE = 0.55
 EMOTION_LABELS = ["angry", "happy", "neutral", "sad"]
 NUM_CLASSES = len(EMOTION_LABELS)
 
-#WEIGHTS_PATH = "FACE_recognition-main/emotion_weights.weights.h5" 
-WEIGHTS_PATH = "FACE_recognition-main/emotion_weights_finetuned.weights.h5"
+WEIGHTS_PATH = "emotion_weights.weights.h5" 
+#WEIGHTS_PATH = "emotion_weights_finetuned.weights.h5"
 
 ALARM_SOUND = "alarm.mp3"
 
@@ -102,19 +102,19 @@ def smooth_emotion(preds):
 # -------------------------
 # FACE PREPROCESSING
 # -------------------------
-clahe = cv2.createCLAHE(clipLimit=2.0)
+# clahe = cv2.createCLAHE(clipLimit=2.0)  # <--- DISABLED to match training data
 
 def preprocess_face(gray):
     # Check if image is valid
     if gray is None or gray.size == 0:
         return None
     
-    gray = clahe.apply(gray)
+    # gray = clahe.apply(gray)  # <--- DISABLED: No extra contrast boosting
+    
     face = cv2.resize(gray, (96, 96))
     face = face.astype("float32") / 255.0
     face = np.expand_dims(face, -1)
     return np.expand_dims(face, 0)
-
 # -------------------------
 # LOAD EMOTION MODEL
 # -------------------------
@@ -123,7 +123,7 @@ print("[INFO] Loading emotion model...")
 emotion_model = build_shufflenetv2(
     input_shape=(96, 96, 1),
     num_classes=NUM_CLASSES,
-    width_multiplier=1.2,
+    width_multiplier=1.0,
 )
 
 success = load_emotion_weights(emotion_model, WEIGHTS_PATH)
@@ -234,12 +234,20 @@ try:
         # -------------------------
         mar = mouth_aspect_ratio(landmarks, MOUTH_OUTER_IDX)
 
-        if mar > YAWN_THRESHOLD:
+        SQUINT_THRESHOLD = 0.25
+
+        if mar > YAWN_THRESHOLD and EAR < SQUINT_THRESHOLD:
             yawn_counter += 1
         else:
+            # If the yawn just finished (counter was high enough), trigger the score
             if yawn_counter >= YAWN_FRAMES_REQUIRED:
                 drowsiness_score += 8
                 total_yawns += 1
+                
+                # Optional: Visual feedback
+                cv2.putText(frame, "YAWN DETECTED", (10, 200),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                            
             yawn_counter = 0
 
         # -------------------------
@@ -287,7 +295,7 @@ try:
 
            if roi is not None and roi.size > 0:
                gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-               gray = cv2.equalizeHist(gray) # Histogram Equalization
+               #gray = cv2.equalizeHist(gray) # Histogram Equalization
 
                face_input = preprocess_face(gray)
                
