@@ -1,7 +1,3 @@
-"""
-main.py — Final Driver Monitoring System (DEBUG MODE)
-"""
-
 import cv2
 import numpy as np
 import mediapipe as mp
@@ -40,7 +36,7 @@ NUM_CLASSES = len(EMOTION_LABELS)
 WEIGHTS_PATH = "emotion_weights.weights.h5" 
 #WEIGHTS_PATH = "emotion_weights_finetuned.weights.h5"
 
-ALARM_SOUND = "alarm.mp3"
+ALARM_SOUND = "utils/alarm.mp3"
 
 # -------------------------
 # DYNAMIC EAR CALIBRATION
@@ -302,8 +298,6 @@ try:
                if face_input is not None:
                    preds = emotion_model(face_input, training=False).numpy()[0]
                    
-                   # --- DEBUG PRINT: Check if preds change ---
-                   # print(f"DEBUG Raw: {preds}") 
                    # ------------------------------------------
 
                    emotion_label, emotion_conf = smooth_emotion(preds)
